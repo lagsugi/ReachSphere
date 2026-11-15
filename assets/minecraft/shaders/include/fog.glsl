@@ -1,25 +1,45 @@
-#version 150
+#ifndef MINECRAFT_FOG_GLSL
+#define MINECRAFT_FOG_GLSL
 
-vec4 linear_fog(vec4 inColor, float vertexDistance, float fogStart, float fogEnd, vec4 fogColor) {
-    float fogValue = 0.0;
-    if (2.6 <= vertexDistance && vertexDistance <= 3.1) {
-        return vec4( 1.0 - inColor.rgb * 1.25, inColor.a);
-    } 
-    else {
-    return inColor;
-    }
-}
+layout(std140) uniform Fog {
+    vec4 FogColor;
+    float FogEnvironmentalStart;
+    float FogEnvironmentalEnd;
+    float FogRenderDistanceStart;
+    float FogRenderDistanceEnd;
+    float FogSkyEnd;
+    float FogCloudsEnd;
+};
 
-float linear_fog_fade(float vertexDistance, float fogStart, float fogEnd) {
+float linear_fog_value(float vertexDistance, float fogStart, float fogEnd) {
     if (vertexDistance <= fogStart) {
-        return 1.0;
-    } else if (vertexDistance >= fogEnd) {
         return 0.0;
+    } else if (vertexDistance >= fogEnd) {
+        return 1.0;
     }
 
-    return smoothstep(fogEnd, fogStart, vertexDistance);
+    return (vertexDistance - fogStart) / (fogEnd - fogStart);
 }
 
-float fog_distance(mat4 modelViewMat, vec3 pos, int shape) {
-        return length((modelViewMat * vec4(pos, 1.0)).xyz);
+float total_fog_value(float sphericalVertexDistance, float cylindricalVertexDistance, float environmentalStart, float environmantalEnd, float renderDistanceStart, float renderDistanceEnd) {
+    return max(linear_fog_value(sphericalVertexDistance, environmentalStart, environmantalEnd), linear_fog_value(cylindricalVertexDistance, renderDistanceStart, renderDistanceEnd));
 }
+
+vec4 apply_fog(vec4 inColor, float sphericalVertexDistance, float cylindricalVertexDistance, float environmentalStart, float environmantalEnd, float renderDistanceStart, float renderDistanceEnd, vec4 fogColor) {
+    if (2.5 < sphericalVertexDistance && sphericalVertexDistance  < 3.0) {
+        return vec4(vec3(1.0 - inColor.rgb), inColor.a);
+    }
+    return inColor;
+}
+
+float fog_spherical_distance(vec3 pos) {
+    return length(pos);
+}
+
+float fog_cylindrical_distance(vec3 pos) {
+    float distXZ = length(pos.xz);
+    float distY = abs(pos.y);
+    return max(distXZ, distY);
+}
+
+#endif
